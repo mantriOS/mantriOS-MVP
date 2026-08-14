@@ -98,6 +98,8 @@ Body:
                         "priority",
                         "confidence",
                         "reason",
+                        "forwarding_subject",
+                        "forwarding_body",
                     ]
 
                     for key in required:

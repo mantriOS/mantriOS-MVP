@@ -3,12 +3,25 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class DepartmentResponse(BaseModel):
+    code: str
+    name: str
+    email: str
+
+
+class ForwardingResponse(BaseModel):
+    subject: str
+    body: str
+
+
 class AnalysisResponse(BaseModel):
     summary: str
     department_code: str
     priority: str
     confidence: float
     reason: str
+    department: Optional[DepartmentResponse] = None
+    forwarding: Optional[ForwardingResponse] = None
 
 
 class PetitionResponse(BaseModel):
