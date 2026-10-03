@@ -13,3 +13,7 @@ export * from "./PetitionClassification";
 export * from "./PetitionMetadata";
 export * from "./PetitionDetailSkeleton";
 export * from "./PetitionDetailError";
+export * from "./OfficerReviewSection";
+export * from "./ForwardPetitionDialog";
+export * from "./PetitionCorrespondence";
+export * from "./PetitionActionStatus";

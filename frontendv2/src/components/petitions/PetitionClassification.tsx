@@ -25,11 +25,11 @@ export function PetitionClassification({ petition }: PetitionClassificationProps
         {/* Department Code */}
         <div>
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-            Target Department
+            AI Suggested Department
           </span>
           {analysis?.department_code ? (
             <div className="flex items-center gap-2">
-              <span className="inline-block rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
+              <span className="inline-block rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 shadow-2xs border border-slate-200">
                 {analysis.department_code}
               </span>
             </div>
@@ -41,7 +41,7 @@ export function PetitionClassification({ petition }: PetitionClassificationProps
         {/* Priority Status */}
         <div>
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-            Priority Assessment
+            AI Suggested Priority
           </span>
           {analysis?.priority ? (
             <PriorityBadge priority={analysis.priority} className="text-xs px-3 py-1" />

@@ -1,4 +1,4 @@
-import { Sparkles, Brain, AlertCircle } from "lucide-react";
+import { Sparkles, Brain, AlertCircle, FileStack } from "lucide-react";
 import type { PetitionAnalysis } from "@/types/petition";
 
 interface PetitionSummaryProps {
@@ -36,7 +36,8 @@ export function PetitionSummary({ analysis }: PetitionSummaryProps) {
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {/* Base Summary */}
         <div>
           <h3 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider mb-1">
             Grievance Summary
@@ -46,8 +47,24 @@ export function PetitionSummary({ analysis }: PetitionSummaryProps) {
           </p>
         </div>
 
+        {/* Combined Submission Summary Structure */}
+        <div className="pt-3 border-t border-indigo-100/60">
+          <h3 className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-900 uppercase tracking-wider mb-1.5">
+            <FileStack className="size-3.5" /> Combined Submission Summary (Email + Attachments)
+          </h3>
+          <div className="bg-white/60 rounded-xl border border-dashed border-indigo-200 p-4 text-center">
+            <p className="text-xs text-indigo-900/70 font-medium">
+              Attachment-aware summarization requires backend/AI integration.
+            </p>
+            <p className="text-[10px] text-indigo-900/50 mt-1">
+              Currently showing only text-based summary. Full document processing coming soon.
+            </p>
+          </div>
+        </div>
+
+        {/* AI Reasoning */}
         {analysis.reason && (
-          <div>
+          <div className="pt-2">
             <h3 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider mb-1">
               AI Reasoning & Routing Rationale
             </h3>
