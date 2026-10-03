@@ -3,7 +3,7 @@ from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.gemini import load_system_prompt
+from app.services.bedrock import load_system_prompt
 
 client = TestClient(app)
 

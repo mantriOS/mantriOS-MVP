@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 import logging
 
 from app.schemas.zapier import EmailRequest
-from app.services.gemini import analyze_email
+from app.services.bedrock import analyze_email
 from app.services import supabase as db
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def process_email(request: EmailRequest):
 
     Flow:
     1. Insert raw petition into `petitions` table with status='pending'.
-    2. Run Gemini AI analysis on the email content.
+    2. Run AWS Bedrock Gemma 3 27B AI analysis on the email content.
     3. Insert AI results into `analysis` table linked to the petition.
     4. Update petition status to 'analysed'.
     5. Return full result including the petition_id for traceability.
@@ -53,7 +53,7 @@ async def process_email(request: EmailRequest):
             headers=request.headers,
         )
         logger.info(
-            "Gemini analysis done: petition_id=%s, department=%s, priority=%s",
+            "Bedrock analysis done: petition_id=%s, department=%s, priority=%s",
             petition_id,
             result.get("department_code"),
             result.get("priority"),
@@ -64,10 +64,10 @@ async def process_email(request: EmailRequest):
             await db.update_petition_status(petition_id, "analysis_failed")
         except Exception:
             pass  # Best-effort; don't mask the original error
-        logger.error("Gemini analysis failed for petition_id=%s: %s", petition_id, e)
+        logger.error("Bedrock analysis failed for petition_id=%s: %s", petition_id, e)
         raise HTTPException(
             status_code=500,
-            detail=f"Gemini processing failed: {str(e)}",
+            detail=f"Bedrock processing failed: {str(e)}",
         )
 
     # ── Step 3: Log analysis results to DB ──────────────────────────────────
