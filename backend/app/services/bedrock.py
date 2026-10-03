@@ -60,11 +60,24 @@ def _clean_json_text(text: str) -> str:
     return text.strip()
 
 
-async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, prompt: str, region: str) -> str:
+async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, content_blocks: list, region: str) -> str:
     """
     Invokes Bedrock via HTTP using an API Key (Bearer token).
     Supports both Bedrock Mantle and standard Bedrock runtime endpoints.
     """
+    import base64
+    import copy
+    
+    # Convert bytes to base64 strings for HTTP JSON serialization
+    http_blocks = copy.deepcopy(content_blocks)
+    for block in http_blocks:
+        if "document" in block and "source" in block["document"] and "bytes" in block["document"]["source"]:
+            if isinstance(block["document"]["source"]["bytes"], bytes):
+                block["document"]["source"]["bytes"] = base64.b64encode(block["document"]["source"]["bytes"]).decode('utf-8')
+        elif "image" in block and "source" in block["image"] and "bytes" in block["image"]["source"]:
+            if isinstance(block["image"]["source"]["bytes"], bytes):
+                block["image"]["source"]["bytes"] = base64.b64encode(block["image"]["source"]["bytes"]).decode('utf-8')
+                
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -73,9 +86,29 @@ async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, prompt: str,
     async with httpx.AsyncClient(timeout=60.0) as client:
         # Option A: Bedrock Mantle (OpenAI-compatible) endpoint
         mantle_url = f"https://bedrock-mantle.{region}.api.aws/v1/chat/completions"
+        # Convert AWS Converse blocks to OpenAI blocks for Mantle
+        openai_blocks = []
+        for b in http_blocks:
+            if "text" in b:
+                openai_blocks.append({"type": "text", "text": b["text"]})
+            elif "image" in b:
+                fmt = b["image"].get("format", "jpeg")
+                b64 = b["image"]["source"]["bytes"]
+                openai_blocks.append({"type": "image_url", "image_url": {"url": f"data:image/{fmt};base64,{b64}"}})
+            elif "document" in b:
+                # OpenAI vision doesn't natively support PDF document blocks in standard chat format.
+                # We will just append a warning or try to pass it if the proxy supports it.
+                logger.warning("Bedrock Mantle (OpenAI format) does not natively support PDF/document blocks.")
+                
+        # If no attachments or just text, we can just pass the string to be safe for basic OpenAI compatibility
+        if len(openai_blocks) == 1 and openai_blocks[0]["type"] == "text":
+            final_content = openai_blocks[0]["text"]
+        else:
+            final_content = openai_blocks
+
         mantle_payload = {
             "model": model_id,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": final_content}],
             "temperature": 0.2,
             "max_tokens": 1024,
         }
@@ -84,13 +117,15 @@ async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, prompt: str,
             if res.status_code == 200:
                 data = res.json()
                 return data["choices"][0]["message"]["content"]
+            else:
+                logger.error(f"Bedrock Mantle failed: HTTP {res.status_code} - {res.text}")
         except Exception as e:
             logger.debug("Bedrock Mantle attempt failed (%s), falling back to standard runtime endpoint", e)
 
         # Option B: Standard Bedrock runtime converse endpoint with Bearer token
         converse_url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model_id}/converse"
         converse_payload = {
-            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "messages": [{"role": "user", "content": http_blocks}],
             "inferenceConfig": {"temperature": 0.2, "maxTokens": 1024},
         }
 
@@ -99,7 +134,7 @@ async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, prompt: str,
             # Option C: InvokeModel endpoint with Bearer token
             invoke_url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model_id}/invoke"
             invoke_payload = {
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [{"role": "user", "content": http_blocks}],
                 "max_tokens": 1024,
                 "temperature": 0.2,
             }
@@ -120,7 +155,7 @@ async def _invoke_bedrock_with_api_key(api_key: str, model_id: str, prompt: str,
         return data["output"]["message"]["content"][0]["text"]
 
 
-def _invoke_bedrock_sync(model_id: str, prompt: str) -> str:
+def _invoke_bedrock_sync(model_id: str, content_blocks: list) -> str:
     """
     Synchronous call to AWS Bedrock using boto3 SigV4 credentials.
     """
@@ -132,7 +167,7 @@ def _invoke_bedrock_sync(model_id: str, prompt: str) -> str:
             messages=[
                 {
                     "role": "user",
-                    "content": [{"text": prompt}],
+                    "content": content_blocks,
                 }
             ],
             inferenceConfig={
@@ -160,7 +195,7 @@ def _invoke_bedrock_sync(model_id: str, prompt: str) -> str:
     body_payload = json.dumps(
         {
             "messages": [
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": content_blocks}
             ],
             "max_tokens": 1024,
             "temperature": 0.2,
@@ -192,7 +227,10 @@ def _invoke_bedrock_sync(model_id: str, prompt: str) -> str:
         raise
 
 
-async def analyze_email(subject: str, body: str, headers: Dict[str, Any]) -> Dict[str, Any]:
+from app.schemas.email_webhook import EmailAttachment
+from typing import List
+
+async def analyze_email(subject: str, body: str, headers: Dict[str, Any], attachments: List[EmailAttachment] = None) -> Dict[str, Any]:
     """
     Analyzes citizen petitions using AWS Bedrock Gemma 3 27B.
     Supports either direct Bedrock API Key (Bearer token) or AWS IAM credentials.
@@ -213,13 +251,52 @@ Body:
 {body}
 """
     full_prompt = f"{system_prompt}\n\nAnalyze this petition:\n{email_content}"
+    if attachments:
+        full_prompt += "\n\n[Note: The user has attached files. Please consider the attached documents/images as part of this petition.]"
+
+    # Convert attachments to Converse API blocks
+    content_blocks = [{"text": full_prompt}]
+    if attachments:
+        import base64
+        for att in attachments:
+            try:
+                # Bedrock converse natively supports pdf, csv, doc, docx, xls, xlsx, html, txt, md
+                raw_bytes = base64.b64decode(att.data_base64) if att.data_base64 else b""
+                if not raw_bytes: continue
+                
+                # Basic size check (Bedrock limit is 4.5MB per doc/image)
+                if len(raw_bytes) > 4.5 * 1024 * 1024:
+                    logger.warning(f"Attachment {att.filename} exceeds Bedrock size limit (4.5MB). Skipping native block.")
+                    continue
+                    
+                ext = att.filename.split('.')[-1].lower() if '.' in att.filename else ''
+                clean_name = re.sub(r'[^a-zA-Z0-9]', '', att.filename.split('.')[0])[:20] or "attachment"
+                
+                if ext in ['pdf', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']:
+                    content_blocks.append({
+                        "document": {
+                            "format": ext,
+                            "name": clean_name,
+                            "source": {"bytes": raw_bytes}
+                        }
+                    })
+                elif ext in ['png', 'jpeg', 'jpg', 'gif', 'webp']:
+                    format_img = "jpeg" if ext == "jpg" else ext
+                    content_blocks.append({
+                        "image": {
+                            "format": format_img,
+                            "source": {"bytes": raw_bytes}
+                        }
+                    })
+            except Exception as e:
+                logger.error(f"Failed to process attachment {att.filename} for Bedrock: {e}")
 
     if api_key and api_key.strip():
         # Path 1: Direct HTTP Bearer token via Bedrock API Key
-        raw_response = await _invoke_bedrock_with_api_key(api_key.strip(), model_id, full_prompt, region)
+        raw_response = await _invoke_bedrock_with_api_key(api_key.strip(), model_id, content_blocks, region)
     else:
         # Path 2: AWS IAM / SigV4 via Boto3
-        raw_response = await asyncio.to_thread(_invoke_bedrock_sync, model_id, full_prompt)
+        raw_response = await asyncio.to_thread(_invoke_bedrock_sync, model_id, content_blocks)
 
     cleaned_text = _clean_json_text(raw_response)
     try:

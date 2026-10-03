@@ -53,7 +53,7 @@ export async function fetchPetitionList(params?: PetitionListParams): Promise<Pe
 }
 
 export async function processEmail(payload: ProcessEmailRequest): Promise<ProcessEmailResponse> {
-  return apiClient<ProcessEmailResponse>("/api/v1/zapier/process-email", {
+  return apiClient<ProcessEmailResponse>("/api/v1/email_webhook/process-email", {
     method: "POST",
     body: JSON.stringify(payload),
   });

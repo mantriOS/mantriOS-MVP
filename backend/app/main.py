@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.api.zapier import router as zapier_router
+from app.api.email_webhook import router as email_webhook_router
 from app.api.petitions import router as petitions_router
 
 app = FastAPI(
@@ -31,5 +31,5 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-app.include_router(zapier_router)
+app.include_router(email_webhook_router)
 app.include_router(petitions_router)
