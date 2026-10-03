@@ -9,129 +9,187 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as DepartmentsRouteImport } from './routes/departments'
-import { Route as InboxRouteImport } from './routes/inbox'
-import { Route as PetitionsPetitionIdRouteImport } from './routes/petitions.$petitionId'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
+import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
+import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedPetitionsPetitionIdRouteImport } from './routes/_authenticated/petitions.$petitionId'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
+const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const DepartmentsRoute = DepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InboxRoute = InboxRouteImport.update({
+const AuthenticatedDepartmentsRoute =
+  AuthenticatedDepartmentsRouteImport.update({
+    id: '/departments',
+    path: '/departments',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const PetitionsPetitionIdRoute = PetitionsPetitionIdRouteImport.update({
-  id: '/petitions/$petitionId',
-  path: '/petitions/$petitionId',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedPetitionsPetitionIdRoute =
+  AuthenticatedPetitionsPetitionIdRouteImport.update({
+    id: '/petitions/$petitionId',
+    path: '/petitions/$petitionId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/departments': typeof DepartmentsRoute
-  '/inbox': typeof InboxRoute
-  '/petitions/$petitionId': typeof PetitionsPetitionIdRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/departments': typeof AuthenticatedDepartmentsRoute
+  '/inbox': typeof AuthenticatedInboxRoute
+  '/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/departments': typeof DepartmentsRoute
-  '/inbox': typeof InboxRoute
-  '/petitions/$petitionId': typeof PetitionsPetitionIdRoute
+  '/login': typeof LoginRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/departments': typeof AuthenticatedDepartmentsRoute
+  '/inbox': typeof AuthenticatedInboxRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/departments': typeof DepartmentsRoute
-  '/inbox': typeof InboxRoute
-  '/petitions/$petitionId': typeof PetitionsPetitionIdRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
+  '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
+  '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/analytics' | '/departments' | '/inbox' | '/petitions/$petitionId'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/departments' | '/inbox' | '/petitions/$petitionId'
-  id:
-    | '__root__'
     | '/'
+    | '/login'
     | '/analytics'
     | '/departments'
     | '/inbox'
     | '/petitions/$petitionId'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/login'
+    | '/analytics'
+    | '/departments'
+    | '/inbox'
+    | '/'
+    | '/petitions/$petitionId'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/analytics'
+    | '/_authenticated/departments'
+    | '/_authenticated/inbox'
+    | '/_authenticated/'
+    | '/_authenticated/petitions/$petitionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AnalyticsRoute: typeof AnalyticsRoute
-  DepartmentsRoute: typeof DepartmentsRoute
-  InboxRoute: typeof InboxRoute
-  PetitionsPetitionIdRoute: typeof PetitionsPetitionIdRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/analytics': {
-      id: '/analytics'
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
       path: '/analytics'
       fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/departments': {
-      id: '/departments'
+    '/_authenticated/departments': {
+      id: '/_authenticated/departments'
       path: '/departments'
       fullPath: '/departments'
-      preLoaderRoute: typeof DepartmentsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDepartmentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/inbox': {
-      id: '/inbox'
+    '/_authenticated/inbox': {
+      id: '/_authenticated/inbox'
       path: '/inbox'
       fullPath: '/inbox'
-      preLoaderRoute: typeof InboxRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedInboxRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/petitions/$petitionId': {
-      id: '/petitions/$petitionId'
+    '/_authenticated/petitions/$petitionId': {
+      id: '/_authenticated/petitions/$petitionId'
       path: '/petitions/$petitionId'
       fullPath: '/petitions/$petitionId'
-      preLoaderRoute: typeof PetitionsPetitionIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedPetitionsPetitionIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
+  AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
+  AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedPetitionsPetitionIdRoute: typeof AuthenticatedPetitionsPetitionIdRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
+  AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
+  AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedPetitionsPetitionIdRoute: AuthenticatedPetitionsPetitionIdRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AnalyticsRoute: AnalyticsRoute,
-  DepartmentsRoute: DepartmentsRoute,
-  InboxRoute: InboxRoute,
-  PetitionsPetitionIdRoute: PetitionsPetitionIdRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,50 +1,63 @@
-import { useQuery } from "@tanstack/react-query";
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  data: unknown;
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
-async function fetcher(endpoint: string) {
-  const res = await fetch(`${BASE_URL}${endpoint}`);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.statusText}`);
+  constructor(status: number, statusText: string, data: unknown, message?: string) {
+    super(message || `API Error (${status}): ${statusText}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.statusText = statusText;
+    this.data = data;
   }
-  return res.json();
 }
 
-export function useAnalytics() {
-  return useQuery({
-    queryKey: ["analytics"],
-    queryFn: () => fetcher("/api/v1/analytics"),
-  });
-}
+const getBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && typeof envUrl === "string") {
+    return envUrl.replace(/\/+$/, "");
+  }
+  return "http://127.0.0.1:8000";
+};
 
-export function useDashboard() {
-  return useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => fetcher("/api/v1/dashboard"),
-  });
-}
+export async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-export function usePetition(id: number) {
-  return useQuery({
-    queryKey: ["petition", id],
-    queryFn: () => fetcher(`/api/v1/petitions/${id}`),
-  });
-}
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers as Record<string, string>),
+  };
 
-export function usePetitionList(params?: any) {
-  return useQuery({
-    queryKey: ["petitions", params],
-    queryFn: () => {
-      const searchParams = new URLSearchParams();
-      if (params) {
-        Object.entries(params).forEach(([key, val]) => {
-          if (val !== undefined && val !== null && val !== "") {
-            searchParams.append(key, String(val));
-          }
-        });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw new ApiError(0, "Network Error", null, err instanceof Error ? err.message : "Failed to fetch from backend API");
+  }
+
+  if (!res.ok) {
+    let errorData: unknown = null;
+    try {
+      errorData = await res.json();
+    } catch {
+      try {
+        errorData = await res.text();
+      } catch {
+        errorData = null;
       }
-      const qs = searchParams.toString();
-      return fetcher(`/api/v1/petitions${qs ? "?" + qs : ""}`);
-    },
-  });
+    }
+    const detailMsg =
+      errorData && typeof errorData === "object" && "detail" in errorData
+        ? String((errorData as { detail: unknown }).detail)
+        : undefined;
+
+    throw new ApiError(res.status, res.statusText, errorData, detailMsg);
+  }
+
+  return res.json() as Promise<T>;
 }
