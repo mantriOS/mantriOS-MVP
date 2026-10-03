@@ -272,7 +272,27 @@ Body:
                 ext = att.filename.split('.')[-1].lower() if '.' in att.filename else ''
                 clean_name = re.sub(r'[^a-zA-Z0-9]', '', att.filename.split('.')[0])[:20] or "attachment"
                 
-                if ext in ['pdf', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']:
+                if ext == 'pdf':
+                    try:
+                        import fitz  # PyMuPDF
+                        # Open the PDF from raw bytes
+                        doc = fitz.open(stream=raw_bytes, filetype="pdf")
+                        for page_num in range(len(doc)):
+                            page = doc.load_page(page_num)
+                            # Render page to an image (matrix scales it down slightly to save tokens/size)
+                            mat = fitz.Matrix(1.5, 1.5)
+                            pix = page.get_pixmap(matrix=mat, alpha=False)
+                            img_bytes = pix.tobytes("jpeg")
+                            content_blocks.append({
+                                "image": {
+                                    "format": "jpeg",
+                                    "source": {"bytes": img_bytes}
+                                }
+                            })
+                        logger.info(f"Successfully converted PDF {att.filename} ({len(doc)} pages) into images.")
+                    except ImportError:
+                        logger.warning("fitz (PyMuPDF) not installed. Cannot process PDF to images.")
+                elif ext in ['csv', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']:
                     content_blocks.append({
                         "document": {
                             "format": ext,
