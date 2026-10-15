@@ -16,6 +16,7 @@ import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedPetitionsPetitionIdRouteImport } from './routes/_authenticated/petitions.$petitionId'
+import { Route as AuthenticatedSettingsEmailBrandingRouteImport } from './routes/_authenticated/settings.email-branding'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -53,6 +54,12 @@ const AuthenticatedPetitionsPetitionIdRoute =
     path: '/petitions/$petitionId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSettingsEmailBrandingRoute =
+  AuthenticatedSettingsEmailBrandingRouteImport.update({
+    id: '/settings/email-branding',
+    path: '/settings/email-branding',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
+  '/settings/email-branding': typeof AuthenticatedSettingsEmailBrandingRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -69,6 +77,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/': typeof AuthenticatedIndexRoute
   '/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
+  '/settings/email-branding': typeof AuthenticatedSettingsEmailBrandingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,6 +88,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/petitions/$petitionId': typeof AuthenticatedPetitionsPetitionIdRoute
+  '/_authenticated/settings/email-branding': typeof AuthenticatedSettingsEmailBrandingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/inbox'
     | '/petitions/$petitionId'
+    | '/settings/email-branding'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/'
     | '/petitions/$petitionId'
+    | '/settings/email-branding'
   id:
     | '__root__'
     | '/_authenticated'
@@ -106,6 +118,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/'
     | '/_authenticated/petitions/$petitionId'
+    | '/_authenticated/settings/email-branding'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPetitionsPetitionIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings/email-branding': {
+      id: '/_authenticated/settings/email-branding'
+      path: '/settings/email-branding'
+      fullPath: '/settings/email-branding'
+      preLoaderRoute: typeof AuthenticatedSettingsEmailBrandingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -173,6 +193,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedPetitionsPetitionIdRoute: typeof AuthenticatedPetitionsPetitionIdRoute
+  AuthenticatedSettingsEmailBrandingRoute: typeof AuthenticatedSettingsEmailBrandingRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -181,6 +202,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedPetitionsPetitionIdRoute: AuthenticatedPetitionsPetitionIdRoute,
+  AuthenticatedSettingsEmailBrandingRoute:
+    AuthenticatedSettingsEmailBrandingRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
