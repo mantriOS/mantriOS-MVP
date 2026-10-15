@@ -150,6 +150,6 @@ async def list_petitions(
     return rows
 
 
-async def get_petition(petition_id: int) -> Optional[Dict[str, Any]]:
-    rows = await list_petitions()
-    return next((row for row in rows if row["id"] == petition_id), None)
+# async def get_petition(petition_id: int) -> Optional[Dict[str, Any]]:
+#     rows = await list_petitions()
+#     return next((row for row in rows if row["id"] == petition_id), None)
