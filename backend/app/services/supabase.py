@@ -1,10 +1,16 @@
 import os
 from typing import Any, Dict, Optional
 import math
+
+from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
+backend_dir = Path(__file__).resolve().parent.parent.parent
+env_file = backend_dir / ".env"
+load_dotenv(dotenv_path=env_file)
 load_dotenv()
+
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
@@ -346,3 +352,188 @@ async def list_petitions(
 async def get_petition(petition_id: int) -> Optional[Dict[str, Any]]:
     rows = await list_petitions()
     return next((row for row in rows if row["id"] == petition_id), None)
+
+
+async def search_similar_petitions(
+    embedding: list[float],
+    top_k: int = 3,
+    similarity_threshold: float = 0.35,
+) -> list[Dict[str, Any]]:
+    """
+    Finds top-k semantically similar historical petitions using Supabase RPC `match_petitions`.
+    Returns empty list gracefully if RPC or table is not yet migrated.
+    """
+    url = f"{SUPABASE_URL}/rest/v1/rpc/match_petitions"
+    payload = {
+        "query_embedding": embedding,
+        "match_count": top_k,
+        "similarity_threshold": similarity_threshold,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=_get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return []
+    except Exception:
+        return []
+
+
+async def upsert_petition_embedding(
+    petition_id: int,
+    content_hash: str,
+    embedding: list[float],
+    department_code: str,
+    priority: str,
+    summary: str,
+) -> bool:
+    """
+    Stores or updates a petition embedding vector for future RAG few-shot retrieval.
+    Gracefully handles cases where the table doesn't exist yet.
+    """
+    url = _api_url("petition_embeddings")
+    payload = {
+        "petition_id": petition_id,
+        "content_hash": content_hash,
+        "embedding": embedding,
+        "department_code": department_code,
+        "priority": priority,
+        "summary": summary,
+    }
+
+    headers = {
+        **_get_headers(),
+        "Prefer": "resolution=merge-duplicates",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            return response.status_code in (200, 201)
+    except Exception:
+        return False
+
+
+# ── Global Email Branding (Header & Footer) ───────────────────────────────────
+
+async def get_email_branding() -> Dict[str, Any]:
+    """Retrieves the global email branding configuration (header and footer)."""
+    url = f"{_api_url('email_branding')}?id=eq.global_default"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, headers=_get_headers())
+            if response.status_code == 200:
+                data = response.json()
+                if data:
+                    return data[0]
+    except Exception:
+        pass
+    return {
+        "id": "global_default",
+        "header_url": None,
+        "header_filename": None,
+        "footer_url": None,
+        "footer_filename": None,
+    }
+
+
+async def update_email_branding(
+    header_url: Optional[str] = None,
+    header_filename: Optional[str] = None,
+    footer_url: Optional[str] = None,
+    footer_filename: Optional[str] = None,
+    updated_by: str = "admin",
+) -> Dict[str, Any]:
+    """Updates global email branding header or footer."""
+    payload: Dict[str, Any] = {
+        "id": "global_default",
+        "updated_at": "now()",
+        "updated_by": updated_by,
+    }
+    if header_url is not None:
+        payload["header_url"] = header_url
+    if header_filename is not None:
+        payload["header_filename"] = header_filename
+    if footer_url is not None:
+        payload["footer_url"] = footer_url
+    if footer_filename is not None:
+        payload["footer_filename"] = footer_filename
+
+    headers = {
+        **_get_headers(),
+        "Prefer": "resolution=merge-duplicates,return=representation",
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(_api_url("email_branding"), json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data[0] if data else payload
+
+
+
+
+# ── Shared Signatures Library ─────────────────────────────────────────────────
+
+async def list_signatures() -> list[Dict[str, Any]]:
+    """Lists all shared email signatures ordered by most recent."""
+    try:
+        return await _fetch_all("email_signatures", params={"order": "created_at.desc"})
+    except Exception:
+        return []
+
+
+async def get_signature(sig_id: int) -> Optional[Dict[str, Any]]:
+    url = f"{_api_url('email_signatures')}?id=eq.{sig_id}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, headers=_get_headers())
+            if response.status_code == 200:
+                data = response.json()
+                return data[0] if data else None
+    except Exception:
+        pass
+    return None
+
+
+async def create_signature(name: str, image_url: str, filename: str, created_by: str = "officer") -> Dict[str, Any]:
+    """Creates a new shared signature."""
+    payload = {
+        "name": name,
+        "image_url": image_url,
+        "filename": filename,
+        "created_by": created_by,
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(_api_url("email_signatures"), json=payload, headers=_get_headers())
+        response.raise_for_status()
+        data = response.json()
+        return data[0]
+
+
+async def update_signature(sig_id: int, name: Optional[str] = None, image_url: Optional[str] = None, filename: Optional[str] = None) -> Dict[str, Any]:
+    """Updates an existing shared signature image or name."""
+    url = f"{_api_url('email_signatures')}?id=eq.{sig_id}"
+    payload: Dict[str, Any] = {"updated_at": "now()"}
+    if name is not None:
+        payload["name"] = name
+    if image_url is not None:
+        payload["image_url"] = image_url
+    if filename is not None:
+        payload["filename"] = filename
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.patch(url, json=payload, headers=_get_headers())
+        response.raise_for_status()
+        data = response.json()
+        return data[0] if data else payload
+
+
+async def delete_signature(sig_id: int) -> bool:
+    """Deletes a shared signature."""
+    url = f"{_api_url('email_signatures')}?id=eq.{sig_id}"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.delete(url, headers=_get_headers())
+        return response.status_code in (200, 204)
+
+

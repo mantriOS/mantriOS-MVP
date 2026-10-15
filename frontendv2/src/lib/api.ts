@@ -12,13 +12,14 @@ export class ApiError extends Error {
   }
 }
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (envUrl && typeof envUrl === "string") {
     return envUrl.replace(/\/+$/, "");
   }
   return "http://127.0.0.1:8000";
 };
+
 
 export async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getBaseUrl();

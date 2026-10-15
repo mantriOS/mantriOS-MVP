@@ -36,13 +36,16 @@ import {
 } from "@/components/ui/sheet";
 import { useDashboard } from "@/services/api";
 import { removeStoredToken } from "@/services/authService";
+import { Settings } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/inbox", label: "Petition Inbox", icon: Inbox, exact: false, matchPrefixes: ["/inbox", "/petitions"] },
   { to: "/departments", label: "Departments", icon: Building2, exact: false, matchPrefixes: ["/departments"] },
   { to: "/analytics", label: "Analytics", icon: BarChart3, exact: false, matchPrefixes: ["/analytics"] },
+  { to: "/settings/email-branding", label: "Email Branding", icon: Settings, exact: false, matchPrefixes: ["/settings"] },
 ] as const;
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -273,8 +276,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <BarChart3 className="mr-2 size-4 text-slate-500" />
                   <span>Performance Analytics</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate({ to: "/settings/email-branding" })}>
+                  <Settings className="mr-2 size-4 text-slate-500" />
+                  <span>Email Branding & Signatures</span>
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:bg-red-50 focus:text-red-700">
                 <LogOut className="mr-2 size-4" />
                 <span>Sign Out</span>
