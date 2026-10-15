@@ -13,6 +13,7 @@ from app.schemas.email_branding import (
     SignatureResponse,
     SignatureUpdateRequest,
 )
+from app.services import email_sender
 from app.services import s3
 from app.services import supabase as db
 
@@ -387,19 +388,84 @@ async def delete_signature(signature_id: int):
         ) from exc
 
 
-# ── Forward Petition Action Dispatch (Ready for Future Email Worker) ──────────
+# ── Forward Petition Action Dispatch (Outbound SMTP via Gmail) ────────────────
 
 @router.post("/forward-petition", response_model=ForwardPetitionSendResponse)
 async def send_forward_petition(request: ForwardPetitionSendRequest):
     """
     Receives forwarded petition dispatch instructions with applied branding/signature.
-    Updates the petition status to 'forwarded' and logs the forwarding action.
+    Sends the outbound email via SMTP and updates the petition status to 'forwarded'.
     """
     try:
-        # Update petition status in Supabase
+        # 1. Fetch current branding configuration if header or footer is enabled
+        branding_config = None
+        if request.header_enabled or request.footer_enabled:
+            try:
+                raw_config = await db.get_email_branding()
+                header_url = raw_config.get("header_url")
+                header_filename = raw_config.get("header_filename") or ""
+                header_type = "html" if header_filename.endswith(".html") else "image"
+                header_html = None
+
+                if header_type == "html" and header_url:
+                    try:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            resp = await client.get(header_url)
+                            if resp.status_code == 200:
+                                header_html = resp.text
+                    except Exception as err:
+                        logger.warning("Could not fetch header HTML: %s", err)
+
+                footer_url = raw_config.get("footer_url")
+                footer_filename = raw_config.get("footer_filename") or ""
+                footer_type = "html" if footer_filename.endswith(".html") else "image"
+                footer_html = None
+
+                if footer_type == "html" and footer_url:
+                    try:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            resp = await client.get(footer_url)
+                            if resp.status_code == 200:
+                                footer_html = resp.text
+                    except Exception as err:
+                        logger.warning("Could not fetch footer HTML: %s", err)
+
+                branding_config = {
+                    "header_type": header_type,
+                    "header_url": header_url,
+                    "header_html": header_html,
+                    "footer_type": footer_type,
+                    "footer_url": footer_url,
+                    "footer_html": footer_html,
+                }
+            except Exception as e:
+                logger.warning("Failed to fetch branding config for forward email: %s", e)
+
+        # 2. Compose branded HTML email content
+        raw_body = request.html_content or f"<p>{request.message}</p>"
+        composed_html = email_sender.compose_branded_html(
+            body_html=raw_body,
+            header_enabled=request.header_enabled,
+            footer_enabled=request.footer_enabled,
+            branding_config=branding_config,
+        )
+
+        # 3. Dispatch outbound email via SMTP
+        await email_sender.send_smtp_email(
+            to=request.to,
+            subject=request.subject,
+            html_content=composed_html,
+            text_content=request.message,
+            cc=request.cc,
+            bcc=request.bcc,
+        )
+
+        # 4. Update petition status in Supabase to 'forwarded'
         await db.update_petition_status(request.petition_id, "forwarded")
         logger.info(
-            "Forwarded petition #%s to %s with branding (header=%s, footer=%s, sig=%s)",
+            "Successfully sent forward email for petition #%s to %s with branding (header=%s, footer=%s, sig=%s)",
             request.petition_id,
             request.to,
             request.header_enabled,
@@ -409,7 +475,7 @@ async def send_forward_petition(request: ForwardPetitionSendRequest):
 
         return ForwardPetitionSendResponse(
             success=True,
-            message="Petition successfully forwarded with official branding.",
+            message="Petition successfully forwarded with official branding via email.",
             petition_id=request.petition_id,
             recipient=request.to,
             status="forwarded",
@@ -418,5 +484,5 @@ async def send_forward_petition(request: ForwardPetitionSendRequest):
         logger.exception("Failed to forward petition #%s", request.petition_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to record forward petition action.",
+            detail=f"Failed to forward petition email: {str(exc)}",
         ) from exc
