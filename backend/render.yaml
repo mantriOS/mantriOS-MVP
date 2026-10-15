@@ -3,7 +3,7 @@ services:
     name: mantriOS-backend
     runtime: python-3.11
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker
+    startCommand: gunicorn --chdir backend app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker
     envVars:
       - key: PYTHON_VERSION
         value: 3.11

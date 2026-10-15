@@ -43,14 +43,12 @@ export async function apiClient<T>(endpoint: string, options: RequestInit = {}):
 
   if (!res.ok) {
     let errorData: unknown = null;
+    const responseText = await res.text().catch(() => "");
     try {
-      errorData = await res.json();
+      errorData = responseText ? JSON.parse(responseText) : null;
     } catch {
-      try {
-        errorData = await res.text();
-      } catch {
-        errorData = null;
-      }
+      // Edge challenges often return an HTML document instead of the API's JSON.
+      errorData = responseText || null;
     }
     const detailMsg =
       errorData && typeof errorData === "object" && "detail" in errorData
